@@ -11,24 +11,31 @@ export function GameCanvas() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Responsive canvas sizing
+    // Responsive canvas sizing - make it much larger
     const updateCanvasSize = () => {
-      const container = canvas.parentElement;
-      if (!container) return;
-
-      const containerWidth = container.clientWidth;
-      const containerHeight = container.clientHeight;
+      // Use viewport dimensions for sizing
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
       
-      // Maintain 4:3 aspect ratio
+      // Maintain 4:3 aspect ratio but make it much larger
       const aspectRatio = 4 / 3;
-      let canvasWidth = Math.min(containerWidth - 40, 800); // Max 800px width
+      
+      // Use most of the viewport, leaving space for header/footer
+      const maxWidth = Math.min(viewportWidth - 40, 1200); // Much larger max width
+      const maxHeight = viewportHeight - 200; // Leave space for header/footer
+      
+      let canvasWidth = maxWidth;
       let canvasHeight = canvasWidth / aspectRatio;
       
       // If height is too tall, constrain by height instead
-      if (canvasHeight > containerHeight - 100) {
-        canvasHeight = containerHeight - 100;
+      if (canvasHeight > maxHeight) {
+        canvasHeight = maxHeight;
         canvasWidth = canvasHeight * aspectRatio;
       }
+      
+      // Minimum size to ensure playability
+      canvasWidth = Math.max(canvasWidth, 600);
+      canvasHeight = Math.max(canvasHeight, 450);
       
       canvas.width = canvasWidth;
       canvas.height = canvasHeight;
@@ -66,8 +73,8 @@ export function GameCanvas() {
   }, []);
 
   return (
-    <div className="flex flex-col items-center w-full max-w-4xl mx-auto p-4">
-      <div className="border-2 border-gray-600 rounded-lg overflow-hidden shadow-2xl bg-black">
+    <div className="flex flex-col items-center w-full mx-auto p-4">
+      <div className="border-2 border-cyan-500 rounded-lg overflow-hidden shadow-2xl bg-black">
         <canvas
           ref={canvasRef}
           className="block"
