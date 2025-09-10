@@ -8,6 +8,7 @@ export class Projectile extends Entity {
   private speed: number;
   private canvasWidth: number;
   private canvasHeight: number;
+  private trailTimer: number = 0;
 
   constructor(
     position: Vector2,
@@ -31,6 +32,8 @@ export class Projectile extends Entity {
   }
 
   update(deltaTime: number): void {
+    this.trailTimer += deltaTime;
+    
     // Check if projectile is out of bounds
     if (!this.isInBounds()) {
       this.destroy();
@@ -42,9 +45,16 @@ export class Projectile extends Entity {
     const size = this.getSize();
 
     if (this.owner === 'player') {
-      // Player projectiles - bright blue/white
-      context.fillStyle = '#00ffff';
-      context.strokeStyle = '#ffffff';
+      // Kiro's projectiles - color changes based on damage
+      if (this.damage > 1) {
+        // Boosted damage - enhanced cyan/purple
+        context.fillStyle = '#ff0099';
+        context.strokeStyle = '#ff66cc';
+      } else {
+        // Normal Kiro projectiles - signature cyan
+        context.fillStyle = '#00ffcc';
+        context.strokeStyle = '#ffffff';
+      }
     } else {
       // Enemy projectiles - red/orange
       context.fillStyle = '#ff4444';
@@ -69,14 +79,39 @@ export class Projectile extends Entity {
       size.y
     );
 
-    // Add trail effect for player projectiles
+    // Add enhanced trail effect for player projectiles
     if (this.owner === 'player') {
-      context.fillStyle = 'rgba(0, 255, 255, 0.3)';
+      this.drawProjectileTrail(context, position, size);
+    }
+  }
+
+  private drawProjectileTrail(context: CanvasRenderingContext2D, position: Vector2, size: Vector2): void {
+    const trailLength = 3;
+    const velocity = this.getVelocity();
+    const velocityNorm = velocity.normalize();
+    
+    for (let i = 1; i <= trailLength; i++) {
+      const trailPos = new Vector2(
+        position.x - velocityNorm.x * i * 8,
+        position.y - velocityNorm.y * i * 8
+      );
+      
+      const alpha = (trailLength - i + 1) / (trailLength + 1) * 0.6;
+      
+      if (this.damage > 1) {
+        // Boosted Kiro projectile trail
+        context.fillStyle = `rgba(255, 0, 153, ${alpha})`;
+      } else {
+        // Normal Kiro projectile trail - signature cyan
+        context.fillStyle = `rgba(0, 255, 204, ${alpha})`;
+      }
+      
+      const trailSize = size.x * (trailLength - i + 1) / (trailLength + 1);
       context.fillRect(
-        position.x - size.x / 2,
-        position.y + size.y / 2,
-        size.x,
-        size.y * 0.5
+        trailPos.x - trailSize / 2,
+        trailPos.y - trailSize / 2,
+        trailSize,
+        trailSize
       );
     }
   }

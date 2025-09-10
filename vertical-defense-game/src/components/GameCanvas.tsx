@@ -11,9 +11,35 @@ export function GameCanvas() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Set canvas size
-    canvas.width = 800;
-    canvas.height = 600;
+    // Responsive canvas sizing
+    const updateCanvasSize = () => {
+      const container = canvas.parentElement;
+      if (!container) return;
+
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+      
+      // Maintain 4:3 aspect ratio
+      const aspectRatio = 4 / 3;
+      let canvasWidth = Math.min(containerWidth - 40, 800); // Max 800px width
+      let canvasHeight = canvasWidth / aspectRatio;
+      
+      // If height is too tall, constrain by height instead
+      if (canvasHeight > containerHeight - 100) {
+        canvasHeight = containerHeight - 100;
+        canvasWidth = canvasHeight * aspectRatio;
+      }
+      
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
+      
+      // Update canvas style for crisp rendering
+      canvas.style.width = `${canvasWidth}px`;
+      canvas.style.height = `${canvasHeight}px`;
+    };
+
+    // Initial size
+    updateCanvasSize();
 
     // Initialize game engine
     try {
@@ -23,8 +49,16 @@ export function GameCanvas() {
       console.error('Failed to initialize game engine:', error);
     }
 
+    // Handle window resize
+    const handleResize = () => {
+      updateCanvasSize();
+    };
+
+    window.addEventListener('resize', handleResize);
+
     // Cleanup function
     return () => {
+      window.removeEventListener('resize', handleResize);
       if (gameEngineRef.current) {
         gameEngineRef.current.stop();
       }
@@ -32,16 +66,33 @@ export function GameCanvas() {
   }, []);
 
   return (
-    <div className="border-2 border-gray-600 rounded-lg overflow-hidden">
-      <canvas
-        ref={canvasRef}
-        className="block"
-        style={{ imageRendering: 'pixelated' }}
-        tabIndex={0} // Make canvas focusable for keyboard events
-      />
-      <div className="mt-4 text-white text-sm text-center">
-        <p>Use ARROW KEYS or WASD to move • Auto-shooting enabled</p>
-        <p>Press SPACE to start • Press R to restart • Press ESC to pause</p>
+    <div className="flex flex-col items-center w-full max-w-4xl mx-auto p-4">
+      <div className="border-2 border-gray-600 rounded-lg overflow-hidden shadow-2xl bg-black">
+        <canvas
+          ref={canvasRef}
+          className="block"
+          style={{ imageRendering: 'pixelated' }}
+          tabIndex={0} // Make canvas focusable for keyboard events
+        />
+      </div>
+      <div className="mt-4 text-white text-sm text-center max-w-2xl">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          <div>
+            <h3 className="font-bold text-cyan-400 mb-2">Controls</h3>
+            <p>ARROW KEYS or WASD to move Kiro</p>
+            <p>Kiro auto-shoots at enemies</p>
+            <p>ESC to pause</p>
+          </div>
+          <div>
+            <h3 className="font-bold text-green-400 mb-2">Gameplay</h3>
+            <p>Help Kiro destroy enemies and barrels</p>
+            <p>Collect power-ups to enhance Kiro</p>
+            <p>Help Kiro survive as long as possible</p>
+          </div>
+        </div>
+        <div className="mt-4 text-gray-400">
+          <p>Press SPACE to start • Press R to restart</p>
+        </div>
       </div>
     </div>
   );

@@ -93,13 +93,13 @@ export class Player extends Entity {
     const position = this.getPosition();
     const size = this.getSize();
 
-    // Draw player as a triangle pointing upward
-    context.fillStyle = '#00ff88';
+    // Draw Kiro as a distinctive character - triangle with Kiro's signature cyan color
+    context.fillStyle = '#00ffcc'; // Kiro's signature cyan
     context.strokeStyle = '#ffffff';
     context.lineWidth = 2;
 
     context.beginPath();
-    // Triangle pointing up
+    // Triangle pointing up (representing Kiro)
     context.moveTo(position.x, position.y - size.y / 2); // Top point
     context.lineTo(position.x - size.x / 2, position.y + size.y / 2); // Bottom left
     context.lineTo(position.x + size.x / 2, position.y + size.y / 2); // Bottom right
@@ -108,8 +108,45 @@ export class Player extends Entity {
     context.fill();
     context.stroke();
 
+    // Add Kiro's distinctive glow effect
+    const glowAlpha = 0.3 + 0.2 * Math.sin(Date.now() * 0.005);
+    context.fillStyle = `rgba(0, 255, 204, ${glowAlpha})`;
+    context.beginPath();
+    context.moveTo(position.x, position.y - size.y / 2 - 2);
+    context.lineTo(position.x - size.x / 2 - 2, position.y + size.y / 2 + 2);
+    context.lineTo(position.x + size.x / 2 + 2, position.y + size.y / 2 + 2);
+    context.closePath();
+    context.fill();
+
+    // Draw shield effect if active
+    if (this.shieldActive) {
+      this.drawShieldEffect(context);
+    }
+
     // Draw health indicator
     this.drawHealthBar(context);
+  }
+
+  private drawShieldEffect(context: CanvasRenderingContext2D): void {
+    const position = this.getPosition();
+    const size = this.getSize();
+    const shieldRadius = Math.max(size.x, size.y) / 2 + 8;
+
+    // Pulsing shield effect
+    const pulseAlpha = 0.3 + 0.2 * Math.sin(Date.now() * 0.01);
+    
+    context.strokeStyle = `rgba(0, 153, 255, ${pulseAlpha})`;
+    context.lineWidth = 3;
+    context.beginPath();
+    context.arc(position.x, position.y, shieldRadius, 0, Math.PI * 2);
+    context.stroke();
+
+    // Inner glow
+    context.strokeStyle = `rgba(255, 255, 255, ${pulseAlpha * 0.5})`;
+    context.lineWidth = 1;
+    context.beginPath();
+    context.arc(position.x, position.y, shieldRadius - 2, 0, Math.PI * 2);
+    context.stroke();
   }
 
   private drawHealthBar(context: CanvasRenderingContext2D): void {
@@ -173,6 +210,27 @@ export class Player extends Entity {
 
   setFireRate(rate: number): void {
     this.fireRate = Math.max(0.05, rate); // Minimum fire rate
+  }
+
+  // Shield functionality
+  private shieldActive: boolean = false;
+
+  setShieldActive(active: boolean): void {
+    this.shieldActive = active;
+  }
+
+  isShieldActive(): boolean {
+    return this.shieldActive;
+  }
+
+  // Override takeDamage to handle shield
+  takeDamage(damage: number): void {
+    if (this.shieldActive) {
+      // Shield blocks damage
+      return;
+    }
+    super.takeDamage(damage);
+    // Note: Damage sound will be played by the game engine
   }
 
   // Override collision behavior

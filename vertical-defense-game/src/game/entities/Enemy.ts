@@ -9,12 +9,17 @@ export class Enemy extends Entity {
   private canvasWidth: number;
   private canvasHeight: number;
   private enemyType: 'basic' | 'fast' | 'heavy';
+  private movementTimer: number = 0;
+  private zigzagDirection: number = 1;
+  private originalSpeed: number;
 
   constructor(
     position: Vector2,
     enemyType: 'basic' | 'fast' | 'heavy' = 'basic',
     canvasWidth: number = 800,
-    canvasHeight: number = 600
+    canvasHeight: number = 600,
+    speedMultiplier: number = 1.0,
+    healthMultiplier: number = 1.0
   ) {
     // Set enemy properties based on type
     let size: Vector2;
@@ -26,22 +31,22 @@ export class Enemy extends Entity {
     switch (enemyType) {
       case 'fast':
         size = new Vector2(25, 25);
-        health = 1;
-        speed = 120;
+        health = Math.ceil(1 * healthMultiplier);
+        speed = 120 * speedMultiplier;
         points = 15;
         attackDamage = 1;
         break;
       case 'heavy':
         size = new Vector2(50, 50);
-        health = 3;
-        speed = 60;
+        health = Math.ceil(3 * healthMultiplier);
+        speed = 60 * speedMultiplier;
         points = 30;
         attackDamage = 2;
         break;
       default: // basic
         size = new Vector2(35, 35);
-        health = 2;
-        speed = 80;
+        health = Math.ceil(2 * healthMultiplier);
+        speed = 80 * speedMultiplier;
         points = 10;
         attackDamage = 1;
         break;
@@ -52,17 +57,20 @@ export class Enemy extends Entity {
     this.enemyType = enemyType;
     this.points = points;
     this.speed = speed;
+    this.originalSpeed = speed;
     this.attackDamage = attackDamage;
     this.canvasWidth = canvasWidth;
     this.canvasHeight = canvasHeight;
 
-    // Set initial velocity (moving downward)
-    this.setVelocity(new Vector2(0, speed));
+    // Set initial velocity based on enemy type
+    this.initializeMovement();
   }
 
   update(deltaTime: number): void {
-    // Move towards player (downward)
-    this.moveTowardsPlayer();
+    this.movementTimer += deltaTime;
+
+    // Update movement based on enemy type
+    this.updateMovement(deltaTime);
 
     // Check if enemy has reached the bottom of the screen
     if (this.hasReachedBottom()) {
@@ -70,12 +78,85 @@ export class Enemy extends Entity {
     }
   }
 
-  private moveTowardsPlayer(): void {
-    // Simple downward movement for now
-    // Could be enhanced later with more sophisticated AI
-    const velocity = new Vector2(0, this.speed);
-    this.setVelocity(velocity);
+  private initializeMovement(): void {
+    switch (this.enemyType) {
+      case 'fast':
+        // Fast enemies move straight down quickly
+        this.setVelocity(new Vector2(0, this.speed));
+        break;
+      case 'heavy':
+        // Heavy enemies move slowly but steadily
+        this.setVelocity(new Vector2(0, this.speed));
+        break;
+      default: // basic
+        // Basic enemies have simple downward movement
+        this.setVelocity(new Vector2(0, this.speed));
+        break;
+    }
   }
+
+  private updateMovement(deltaTime: number): void {
+    switch (this.enemyType) {
+      case 'fast':
+        this.updateFastEnemyMovement(deltaTime);
+        break;
+      case 'heavy':
+        this.updateHeavyEnemyMovement(deltaTime);
+        break;
+      default: // basic
+        this.updateBasicEnemyMovement(deltaTime);
+        break;
+    }
+  }
+
+  private updateBasicEnemyMovement(deltaTime: number): void {
+    // Basic enemies zigzag slightly as they move down
+    const zigzagSpeed = 30; // pixels per second horizontal movement
+    const zigzagFrequency = 2; // direction changes per second
+    
+    if (this.movementTimer > 1 / zigzagFrequency) {
+      this.zigzagDirection *= -1;
+      this.movementTimer = 0;
+    }
+
+    const horizontalVelocity = zigzagSpeed * this.zigzagDirection;
+    this.setVelocity(new Vector2(horizontalVelocity, this.speed));
+  }
+
+  private updateFastEnemyMovement(deltaTime: number): void {
+    // Fast enemies move in a sine wave pattern
+    const waveAmplitude = 50; // pixels
+    const waveFrequency = 3; // waves per second
+    
+    const position = this.getPosition();
+    const waveOffset = Math.sin(this.movementTimer * waveFrequency * Math.PI * 2) * waveAmplitude;
+    
+    // Calculate horizontal velocity to create wave motion
+    const horizontalVelocity = Math.cos(this.movementTimer * waveFrequency * Math.PI * 2) * waveAmplitude * waveFrequency * Math.PI * 2;
+    
+    this.setVelocity(new Vector2(horizontalVelocity, this.speed));
+  }
+
+  private updateHeavyEnemyMovement(deltaTime: number): void {
+    // Heavy enemies move straight down but occasionally pause and speed up
+    const pauseInterval = 3; // seconds between behavior changes
+    const speedBoostDuration = 1; // seconds of speed boost
+    
+    const cycleTime = this.movementTimer % pauseInterval;
+    
+    if (cycleTime < speedBoostDuration) {
+      // Speed boost phase
+      this.setVelocity(new Vector2(0, this.originalSpeed * 1.5));
+    } else if (cycleTime < speedBoostDuration + 0.5) {
+      // Brief pause
+      this.setVelocity(new Vector2(0, this.originalSpeed * 0.2));
+    } else {
+      // Normal movement
+      this.setVelocity(new Vector2(0, this.originalSpeed));
+    }
+  }
+
+
 
   private hasReachedBottom(): boolean {
     const position = this.getPosition();
@@ -110,27 +191,88 @@ export class Enemy extends Entity {
     context.strokeStyle = strokeColor;
     context.lineWidth = 2;
 
-    // Draw enemy as a diamond/rhombus shape
-    context.beginPath();
-    context.moveTo(position.x, position.y - size.y / 2); // Top
-    context.lineTo(position.x + size.x / 2, position.y); // Right
-    context.lineTo(position.x, position.y + size.y / 2); // Bottom
-    context.lineTo(position.x - size.x / 2, position.y); // Left
-    context.closePath();
-
-    context.fill();
-    context.stroke();
+    // Draw different shapes based on enemy type
+    this.drawEnemyShape(context, position, size);
 
     // Draw health indicator for enemies with more than 1 HP
     if (this.getMaxHealth() > 1) {
       this.drawHealthBar(context);
     }
 
-    // Add pulsing effect for heavy enemies
-    if (this.enemyType === 'heavy') {
-      const pulseAlpha = 0.3 + 0.2 * Math.sin(Date.now() * 0.01);
-      context.fillStyle = `rgba(255, 255, 255, ${pulseAlpha})`;
-      context.fill();
+    // Add special effects based on enemy type
+    this.drawSpecialEffects(context, position, size);
+  }
+
+  private drawEnemyShape(context: CanvasRenderingContext2D, position: Vector2, size: Vector2): void {
+    switch (this.enemyType) {
+      case 'fast':
+        // Fast enemies - triangle pointing down (aggressive)
+        context.beginPath();
+        context.moveTo(position.x, position.y + size.y / 2); // Bottom point
+        context.lineTo(position.x - size.x / 2, position.y - size.y / 2); // Top left
+        context.lineTo(position.x + size.x / 2, position.y - size.y / 2); // Top right
+        context.closePath();
+        break;
+      case 'heavy':
+        // Heavy enemies - hexagon (sturdy)
+        context.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const angle = (i * Math.PI) / 3;
+          const x = position.x + Math.cos(angle) * size.x / 2;
+          const y = position.y + Math.sin(angle) * size.y / 2;
+          if (i === 0) context.moveTo(x, y);
+          else context.lineTo(x, y);
+        }
+        context.closePath();
+        break;
+      default: // basic
+        // Basic enemies - diamond/rhombus
+        context.beginPath();
+        context.moveTo(position.x, position.y - size.y / 2); // Top
+        context.lineTo(position.x + size.x / 2, position.y); // Right
+        context.lineTo(position.x, position.y + size.y / 2); // Bottom
+        context.lineTo(position.x - size.x / 2, position.y); // Left
+        context.closePath();
+        break;
+    }
+
+    context.fill();
+    context.stroke();
+  }
+
+  private drawSpecialEffects(context: CanvasRenderingContext2D, position: Vector2, size: Vector2): void {
+    switch (this.enemyType) {
+      case 'fast':
+        // Speed trail effect
+        const trailAlpha = 0.4 + 0.2 * Math.sin(this.movementTimer * 10);
+        context.fillStyle = `rgba(255, 102, 0, ${trailAlpha})`;
+        context.fillRect(
+          position.x - size.x / 4,
+          position.y - size.y,
+          size.x / 2,
+          size.y / 2
+        );
+        break;
+      case 'heavy':
+        // Pulsing armor effect
+        const pulseAlpha = 0.3 + 0.2 * Math.sin(this.movementTimer * 4);
+        context.strokeStyle = `rgba(255, 255, 255, ${pulseAlpha})`;
+        context.lineWidth = 3;
+        context.beginPath();
+        context.arc(position.x, position.y, Math.max(size.x, size.y) / 2 + 3, 0, Math.PI * 2);
+        context.stroke();
+        break;
+      default: // basic
+        // Subtle glow effect
+        const glowAlpha = 0.2 + 0.1 * Math.sin(this.movementTimer * 6);
+        context.fillStyle = `rgba(255, 0, 0, ${glowAlpha})`;
+        context.fillRect(
+          position.x - size.x / 2 - 2,
+          position.y - size.y / 2 - 2,
+          size.x + 4,
+          size.y + 4
+        );
+        break;
     }
   }
 
