@@ -1,33 +1,34 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { GameEngine } from '@/game/engine/GameEngine';
 
 export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const gameEngineRef = useRef<GameEngine | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
     // Set canvas size
     canvas.width = 800;
     canvas.height = 600;
 
-    // Basic setup - clear canvas with dark background
-    ctx.fillStyle = '#1a1a2e';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Initialize game engine
+    try {
+      gameEngineRef.current = new GameEngine(canvas);
+      gameEngineRef.current.start();
+    } catch (error) {
+      console.error('Failed to initialize game engine:', error);
+    }
 
-    // Add some basic text to show the canvas is working
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '24px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('Vertical Defense Game', canvas.width / 2, canvas.height / 2);
-    ctx.font = '16px Arial';
-    ctx.fillText('Game engine loading...', canvas.width / 2, canvas.height / 2 + 40);
-
+    // Cleanup function
+    return () => {
+      if (gameEngineRef.current) {
+        gameEngineRef.current.stop();
+      }
+    };
   }, []);
 
   return (
@@ -36,7 +37,12 @@ export function GameCanvas() {
         ref={canvasRef}
         className="block"
         style={{ imageRendering: 'pixelated' }}
+        tabIndex={0} // Make canvas focusable for keyboard events
       />
+      <div className="mt-4 text-white text-sm text-center">
+        <p>Use ARROW KEYS or WASD to move • Auto-shooting enabled</p>
+        <p>Press SPACE to start • Press R to restart • Press ESC to pause</p>
+      </div>
     </div>
   );
 }
